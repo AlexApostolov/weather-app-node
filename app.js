@@ -1,5 +1,7 @@
-const request = require('request');
 const yargs = require('yargs');
+
+const geocode = require('./geocode/geocode');
+const weather = require('./weather/weather');
 
 // Object that stores the final parsed output
 // It takes the input from the process variable and pass it through yargs
@@ -16,21 +18,25 @@ const argv = yargs
   .help()
   .alias('help', 'h').argv; // 1st arg the actual agrument, 2nd arg is alias
 
-// console.log(argv);
-
-// Replace spaces etc. for URI components to inject into URL
-var encodedAddress = encodeURIComponent(argv.address);
-
-// Use "request" library to make a request, 1 arg options, 2nd arg callback called once data comes back
-request(
-  {
-    // use the options object to pass a URL and have it convert the JSON to an object for us
-    url: `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}`,
-    json: true
-  }, // Callback function with arguments just like in the "request" docs
-  (error, response, body) => {
-    console.log(`Address: ${body.results[0].formatted_address}`);
-    console.log(`Latitude: ${body.results[0].geometry.location.lat}`);
-    console.log(`Longitude: ${body.results[0].geometry.location.lng}`);
+// Call function responsible for all the logic behind geolocation, and call back with either an error message/results
+geocode.geocodeAddress(argv.address, (errorMessage, results) => {
+  if (errorMessage) {
+    console.log(errorMessage);
+  } else {
+    console.log(results.address);
+    // Dynamically pass the longitude and latitude to the weather search function
+    weather.getWeather(
+      results.latitude,
+      results.longitude,
+      (errorMessage, weatherResults) => {
+        if (errorMessage) {
+          console.log(errorMessage);
+        } else {
+          console.log(
+            `It's currently ${weatherResults.temperature}. It feels like ${weatherResults.apparentTemperature}.`
+          );
+        }
+      }
+    );
   }
-);
+});
